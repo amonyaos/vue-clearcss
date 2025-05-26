@@ -90,7 +90,7 @@ function findEleWithHtml (ele, ast, matchCache) {
     return matchCache.getCache(matchCache.builderCacheKey(ele))
   }
   function traversesWithHtml (ele, ast) {
-    if (!ast || ast.type !== 1) return
+    if (!ast || ast.type > 1) return
     let type = ele.type
     let typeDis = {
       tag: ({ value }) => ast.tag === value,

@@ -26,6 +26,9 @@ module.exports = class parsecss {
     this.mode = opt.mode || 'normal'
     this.opt = {...defaultOpt,...opt}
     this.templateModule = {
+      transformNodeV3: function transformNodeV3 (node) {
+        this.htmlAstChildTransformV3(node, this)
+      }.bind(this),
       transformNode: function transformNode (node) {
         let children = node.children
         let childrens = []
@@ -38,7 +41,7 @@ module.exports = class parsecss {
   }
   initParse (url) {
     var fs = require('fs')
-    const compiler = require('vue-template-compiler/build')
+    const compiler = require('@vue/compiler-sfc')
     var path = require('path')
     this.suffixName = path.extname(path.resolve(process.execPath, url))
     if (this.suffixName !== '.vue') {
@@ -46,9 +49,12 @@ module.exports = class parsecss {
     }
     var data = this.opt.vueData || fs.readFileSync(path.resolve(process.execPath, url), 'utf-8')
     var { validArr } = require('../util')
-    var res = compiler.parseComponent(data, { pad: 'line' })
-    const htmlast = compiler.compile(res.template ? res.template.content : '<template />', {
-      modules: [this.templateModule]
+    const { descriptor: res = {} } = compiler.parse(data, { pad: 'line' })
+    const htmlast = compiler.compileTemplate({
+      source: res.template ? res.template.content : '<template />',
+      compilerOptions: {
+        nodeTransforms: [this.templateModule.transformNodeV3]
+      }
     })
     let filterArr = []
 
@@ -157,5 +163,29 @@ module.exports = class parsecss {
     })
 
     return res
+  }
+
+  htmlAstChildTransformV3(node, self) {
+    node?.props?.forEach(prop => {
+      if (prop.rawName === ":class" && prop.name === "bind") {
+        node.classBinding = prop.loc.source.replace(/^:class\s*=\s*["']/, "").replace(/["']$/, "")
+      } else if (prop.value?.content) {
+        if (!node.attrsMap) {
+          node.attrsMap = {}
+        }
+        node.attrsMap[prop.rawName || prop.name] = prop.value.content
+      }
+    })
+    if (node && !node.childrens) {
+      const childrens = []
+      const nodes = (node.children || []).concat(node.branches || [])
+      nodes.forEach(node => {
+        self.htmlAstChildTransformV3(node, self)
+        childrens.push(node)
+      })
+      if (childrens.length) {
+        node.childrens = childrens
+      }
+    }
   }
 }

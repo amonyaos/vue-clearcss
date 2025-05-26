@@ -109,7 +109,7 @@ function findMutualArr (children, blockScope) {
 }
 
 function getChildMutual (ele, next) {
-  let children = ele.parent.childrens.filter(e => e.type === 1)
+  let children = ele.parent?.childrens.filter(e => e.type === 1) || []
   let blockScope = ele.blockScope
   children = findMutualArr(children, blockScope, false)
   let currentIndex = findEleIndexInParent(ele, children)
